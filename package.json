@@ -1,0 +1,8 @@
+{
+  "name": "wicked-guidelines-form",
+  "version": "1.0.0",
+  "description": "Wicked Professional Working Guidelines Form",
+  "scripts": {
+    "dev": "vercel dev"
+  }
+}
