@@ -98,6 +98,17 @@ body { background: #f5f5f5; min-height: 100vh; display: flex; align-items: flex-
       <span class="wk-error" id="id-error">Please enter your ID to continue.</span>
       <p class="wk-hint">Your ID was provided to you when you were added to the system.</p>
     </div>
+    <div id="staff-confirm" style="display:none; margin-bottom:1.5rem; background:#f0faf0; border:1px solid #c3e6c3; border-radius:3px; padding:1rem 1.25rem; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+      <div>
+        <p style="font-size:13px; color:#2e7d32; font-weight:500; margin-bottom:2px;">Is this you?</p>
+        <p style="font-size:16px; font-weight:500; color:#111; margin-bottom:2px;" id="staff-name"></p>
+        <p style="font-size:13px; color:#555;" id="staff-dept"></p>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="wk-btn green" onclick="confirmIdentity()" style="width:auto; padding:9px 18px; margin-top:0;">Yes, that's me</button>
+        <button onclick="wrongPerson()" style="width:auto; padding:9px 18px; margin-top:0; background:#fff; color:#c0392b; border:1px solid #c0392b; border-radius:3px; font-size:13px; font-weight:500; letter-spacing:0.05em; cursor:pointer;">Not me</button>
+      </div>
+    </div>
     <button class="wk-btn green" onclick="goStep2()">Continue &#8594;</button>
   </div>
 
@@ -193,13 +204,63 @@ body { background: #f5f5f5; min-height: 100vh; display: flex; align-items: flex-
   let scrolledEnough = false;
   let startTime = new Date().toISOString();
 
-  function goStep2() {
+  async function goStep2() {
     const val = document.getElementById("enter-id").value.trim();
     const err = document.getElementById("id-error");
     if (!val) { err.style.display = "block"; return; }
     err.style.display = "none";
-    startTime = new Date().toISOString();
+
+    // Show loading state
+    const btn = document.querySelector("#screen-1 .wk-btn");
+    btn.disabled = true;
+    btn.textContent = "Checking ID...";
+
+    try {
+      const res = await fetch("/api/lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enterId: val })
+      });
+
+      if (res.status === 404) {
+        err.textContent = "ID not found. Please check and try again.";
+        err.style.display = "block";
+        btn.disabled = false;
+        btn.textContent = "Continue →";
+        return;
+      }
+
+      if (!res.ok) throw new Error("Lookup failed");
+
+      const staff = await res.json();
+
+      // Show confirmation banner
+      document.getElementById("staff-name").textContent = staff.name;
+      document.getElementById("staff-dept").textContent = staff.department + (staff.role ? " — " + staff.role : "");
+      document.getElementById("staff-confirm").style.display = "flex";
+
+      btn.disabled = false;
+      btn.textContent = "Continue →";
+      startTime = new Date().toISOString();
+
+    } catch (err2) {
+      // If lookup fails, still allow progression
+      console.warn("Lookup failed, proceeding anyway:", err2);
+      btn.disabled = false;
+      btn.textContent = "Continue →";
+      startTime = new Date().toISOString();
+      setScreen(2); updateSteps(2);
+    }
+  }
+
+  function confirmIdentity() {
     setScreen(2); updateSteps(2);
+  }
+
+  function wrongPerson() {
+    document.getElementById("staff-confirm").style.display = "none";
+    document.getElementById("enter-id").value = "";
+    document.getElementById("enter-id").focus();
   }
 
   function goStep3() {
