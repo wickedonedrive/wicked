@@ -20,12 +20,22 @@ module.exports = async function handler(req, res) {
     }
 
     const spreadsheetId = process.env.GOOGLE_SHEET_ID;
-    const range = 'Sheet1!A:E';
+
+    // Get current data to find next empty row
+    const getRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Sheet1!A:A`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const getData = await getRes.json();
+    const nextRow = (getData.values ? getData.values.length : 1) + 1;
+
+    // Write only to columns A-E on that specific row, leaving F and G untouched
+    const writeRange = `Sheet1!A${nextRow}:E${nextRow}`;
 
     const sheetsRes = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(writeRange)}?valueInputOption=USER_ENTERED`,
       {
-        method: 'POST',
+        method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
